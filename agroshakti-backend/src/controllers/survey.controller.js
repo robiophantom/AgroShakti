@@ -1,5 +1,5 @@
 const pool = require('../config/database');
-const path = require('path');
+const cloudinaryService = require('../services/r2Service'); // We're reusing the same artifact ID
 
 class SurveyController {
   
@@ -142,13 +142,14 @@ class SurveyController {
         });
       }
 
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // Upload image to Cloudinary
+      const uploadResult = await cloudinaryService.uploadImage(req.file.buffer, `surveys/${id}`);
 
       const result = await client.query(
         `INSERT INTO survey_responses (survey_id, user_id, disease_name, image_url, cure_description, why_description) 
          VALUES ($1, $2, $3, $4, $5, $6) 
          RETURNING *`,
-        [id, req.user.userId, disease_name, imageUrl, cure_description, why_description]
+        [id, req.user.userId, disease_name, uploadResult.url, cure_description, why_description]
       );
 
       res.status(201).json({
