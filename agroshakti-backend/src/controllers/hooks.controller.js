@@ -1,6 +1,10 @@
 const pool = require('../config/database');
 const flaskService = require('../services/flaskService');
+const cloudinaryService = require('../services/r2Service');
 const { HOOK_TYPES } = require('../config/constants');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 class HooksController {
   
@@ -215,6 +219,8 @@ class HooksController {
   // Hook 6: Disease Detection (calls :8001 first, then :8000 if successful)
   async diseaseDetection(req, res) {
     const client = await pool.connect();
+    let tempFilePath = null;
+    
     try {
       if (!req.file) {
         return res.status(400).json({
@@ -223,34 +229,45 @@ class HooksController {
         });
       }
 
-      const imagePath = req.file.path;
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // Create temporary file for Flask service (it needs file path)
+      const tempDir = os.tmpdir();
+      tempFilePath = path.join(tempDir, `disease_${Date.now()}_${req.file.originalname}`);
+      fs.writeFileSync(tempFilePath, req.file.buffer);
 
       // Step 1: Call Flask :8001 for disease detection
-      const detectionResponse = await flaskService.detectDisease(imagePath);
+      const detectionResponse = await flaskService.detectDisease(tempFilePath);
 
       let cureRecommendation = null;
       let detectionSuccessful = false;
+      let cloudinaryUrl = null;
 
-      // Step 2: If disease detected, call Flask :8000 for cure recommendation (RAG)
+      // Step 2: If disease detected, upload to Cloudinary and get cure
       if (detectionResponse.detected && detectionResponse.disease) {
         detectionSuccessful = true;
         
+        // Upload image to Cloudinary
+        const uploadResult = await cloudinaryService.uploadImage(req.file.buffer, 'disease-detection');
+        cloudinaryUrl = uploadResult.url;
+
         const diseaseInfo = {
           disease_name: detectionResponse.disease,
           confidence: detectionResponse.confidence,
-          image_url: imageUrl
+          image_url: cloudinaryUrl
         };
 
         const cureResponse = await flaskService.getDiseaseCure(diseaseInfo);
         cureRecommendation = cureResponse.cure_recommendation || JSON.stringify(cureResponse);
+      } else {
+        // Upload anyway for record keeping
+        const uploadResult = await cloudinaryService.uploadImage(req.file.buffer, 'disease-detection');
+        cloudinaryUrl = uploadResult.url;
       }
 
       // Save to database
       await client.query(
         `INSERT INTO disease_detections (user_id, image_url, detected_disease, confidence_score, cure_recommendation, detection_successful) 
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [req.user.userId, imageUrl, detectionResponse.disease, detectionResponse.confidence, 
+        [req.user.userId, cloudinaryUrl, detectionResponse.disease, detectionResponse.confidence, 
          cureRecommendation, detectionSuccessful]
       );
 
@@ -259,6 +276,7 @@ class HooksController {
         data: {
           detection: detectionResponse,
           cure: detectionSuccessful ? cureRecommendation : null,
+          image_url: cloudinaryUrl,
           message: detectionSuccessful 
             ? 'Disease detected and cure recommendation provided' 
             : 'No disease detected or image unclear'
@@ -271,6 +289,10 @@ class HooksController {
         message: error.message || 'Failed to detect disease'
       });
     } finally {
+      // Clean up temporary file
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
       client.release();
     }
   }

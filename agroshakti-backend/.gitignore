@@ -10,9 +10,6 @@ yarn-error.log*
 .env.development
 .env.production
 
-# Uploads
-uploads/*
-!uploads/.gitkeep
 
 # Ignore markdown files except the main README
 *.md

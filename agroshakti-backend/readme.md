@@ -6,7 +6,8 @@ Complete backend system for AgroShakti - An AI-powered Agricultural Chatbot Plat
 
 - **Runtime:** Node.js
 - **Framework:** Express.js
-- **Database:** PostgreSQL
+- **Database:** PostgreSQL (Supabase)
+- **Image Storage:** Cloudinary
 - **Authentication:** JWT (Access & Refresh Tokens)
 - **File Upload:** Multer
 - **HTTP Client:** Axios (for Flask ML services)
@@ -81,7 +82,14 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=your_password
-DB_NAME=agroshakti
+DB_NAME=postgres
+DB_SSL=true
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_FOLDER=agroshakti
 
 JWT_SECRET=your_super_secret_jwt_key_here
 JWT_REFRESH_SECRET=your_super_secret_refresh_key_here
@@ -91,7 +99,6 @@ JWT_REFRESH_EXPIRES_IN=7d
 FLASK_ML_BASE_URL=http://localhost:8000
 FLASK_DISEASE_DETECTION_URL=http://localhost:8001
 
-UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=5242880
 
 CORS_ORIGIN=http://localhost:3000
