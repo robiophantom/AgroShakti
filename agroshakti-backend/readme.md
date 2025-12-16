@@ -10,7 +10,13 @@ A complete, production-ready backend API for AgroShakti - an AI-powered agricult
 - Government schemes information
 - Soil analysis
 
----
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** PostgreSQL (Supabase)
+- **Image Storage:** Cloudinary
+- **Authentication:** JWT (Access & Refresh Tokens)
+- **File Upload:** Multer
+- **HTTP Client:** Axios (for Flask ML services)
 
 ## 🏗️ **Architecture Overview**
 
@@ -116,21 +122,24 @@ agroshakti-backend/
 ### Feedback & Reports (5 routes)
 - Submit/View Feedback, Submit/View/Resolve Reports
 
-### Admin (4 routes)
-- Statistics, User Management, Role Changes, User Deletion
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_NAME=postgres
+DB_SSL=true
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_FOLDER=agroshakti
 
 ---
 
 ## 🤖 **6 AgroShakti AI Hooks**
 
-| Hook | Flask Port | Purpose |
-|------|------------|---------|
-| 1. Chatbot | :8000 | Multilingual farming advice |
-| 2. Soil Analysis | :8000 | IoT sensor data analysis |
-| 3. Resource Estimation | :8000 | Crop resource planning |
-| 4. Weather Advisory | :8000 | Hyperlocal weather + prices |
-| 5. Scheme Search | :8000 | AI-powered scheme matching |
-| 6. Disease Detection | :8001 → :8000 | Image detection + RAG cure |
+MAX_FILE_SIZE=5242880
 
 **Special Flow for Disease Detection:**
 ```
