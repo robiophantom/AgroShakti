@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const flaskService = require('../services/flaskService');
 const cloudinaryService = require('../services/r2Service');
+const ttsService = require('../services/ttsService');
 const { HOOK_TYPES } = require('../config/constants');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ class HooksController {
   async chatbot(req, res) {
     const client = await pool.connect();
     try {
-      const { message, session_id } = req.body;
+      const { message, session_id, language, original_message } = req.body;
 
       if (!message) {
         return res.status(400).json({
@@ -22,19 +23,45 @@ class HooksController {
       }
 
       const sessionId = session_id || `session_${req.user.userId}_${Date.now()}`;
+      const userLang = language || 'en';
 
+      // Message is already in English (translated by frontend)
+      // Call Flask LLM with English message
       const flaskResponse = await flaskService.callChatbot(message, sessionId);
+      const englishResponse = flaskResponse.response || flaskResponse;
 
+      // If user language is not English, translate response back to user's language
+      let finalResponse = englishResponse;
+      if (userLang !== 'en') {
+        try {
+          const axios = require('axios');
+          const translateResponse = await axios.post('https://libretranslate.de/translate', {
+            q: englishResponse,
+            source: 'en',
+            target: userLang,
+            format: 'text'
+          }, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+          });
+          finalResponse = translateResponse.data.translatedText || englishResponse;
+        } catch (translateError) {
+          console.error('Response translation failed:', translateError.message);
+          // Use English response if translation fails
+        }
+      }
+
+      // Store original user message (in their language) and translated response
       await client.query(
         `INSERT INTO chat_history (user_id, session_id, message, response, hook_type) 
          VALUES ($1, $2, $3, $4, $5)`,
-        [req.user.userId, sessionId, message, flaskResponse.response || JSON.stringify(flaskResponse), HOOK_TYPES.CHATBOT]
+        [req.user.userId, sessionId, original_message || message, finalResponse, HOOK_TYPES.CHATBOT]
       );
 
       res.json({
         success: true,
         data: {
-          response: flaskResponse.response || flaskResponse,
+          response: finalResponse,
           session_id: sessionId
         }
       });
@@ -294,6 +321,115 @@ class HooksController {
         fs.unlinkSync(tempFilePath);
       }
       client.release();
+    }
+  }
+
+  // Text-to-Speech endpoint - Natural human-like voices
+  async textToSpeech(req, res) {
+    try {
+      const { text, language } = req.body;
+
+      if (!text) {
+        return res.status(400).json({
+          success: false,
+          message: 'Text is required'
+        });
+      }
+
+      const targetLang = language || 'en-US';
+
+      try {
+        const audioData = await ttsService.synthesizeSpeech(text, targetLang);
+        
+        res.json({
+          success: true,
+          data: {
+            audio: audioData.audio,
+            format: audioData.format,
+            provider: audioData.provider
+          }
+        });
+      } catch (error) {
+        console.error('TTS Error:', error.message);
+        // Return error but suggest browser TTS fallback
+        res.status(500).json({
+          success: false,
+          message: 'TTS service unavailable. Please use browser TTS or configure Google Cloud TTS.',
+          fallback: 'browser'
+        });
+      }
+    } catch (error) {
+      console.error('Text-to-Speech Hook Error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to generate speech'
+      });
+    }
+  }
+
+  // Translation endpoint - uses LibreTranslate or similar free service
+  async translate(req, res) {
+    try {
+      const { text, source_lang, target_lang } = req.body;
+
+      if (!text || !source_lang || !target_lang) {
+        return res.status(400).json({
+          success: false,
+          message: 'Text, source_lang, and target_lang are required'
+        });
+      }
+
+      // If same language, return as is
+      if (source_lang === target_lang) {
+        return res.json({
+          success: true,
+          data: {
+            translated_text: text
+          }
+        });
+      }
+
+      // Use LibreTranslate API (free, no API key needed for basic usage)
+      // You can also use Google Translate API if you have an API key
+      const axios = require('axios');
+      
+      try {
+        // Try LibreTranslate public instance (may have rate limits)
+        const translateResponse = await axios.post('https://libretranslate.de/translate', {
+          q: text,
+          source: source_lang,
+          target: target_lang,
+          format: 'text'
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        });
+
+        return res.json({
+          success: true,
+          data: {
+            translated_text: translateResponse.data.translatedText || text
+          }
+        });
+      } catch (translateError) {
+        console.error('Translation API error:', translateError.message);
+        // Fallback: return original text if translation fails
+        return res.json({
+          success: true,
+          data: {
+            translated_text: text,
+            note: 'Translation service unavailable, returning original text'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Translation Hook Error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to translate text'
+      });
     }
   }
 }

@@ -139,6 +139,13 @@ CLOUDINARY_FOLDER=agroshakti
 
 ## 🤖 **6 AgroShakti AI Hooks**
 
+# Google Cloud TTS (Optional - for natural human-like voices)
+# Get credentials from: https://console.cloud.google.com/apis/credentials
+# Option 1: Set path to service account JSON file
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account-key.json
+# Option 2: Or set project ID (uses default credentials)
+GOOGLE_CLOUD_PROJECT=your-project-id
+
 MAX_FILE_SIZE=5242880
 
 **Special Flow for Disease Detection:**

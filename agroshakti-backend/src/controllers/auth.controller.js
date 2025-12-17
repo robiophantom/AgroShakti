@@ -227,16 +227,39 @@ class AuthController {
   async getMe(req, res) {
     const client = await pool.connect();
     try {
-      const result = await client.query(
-        'SELECT id, name, email, phone, role, language_preference, location, created_at FROM users WHERE id = $1',
-        [req.user.userId]
-      );
+      // Try to include avatar column, handle gracefully if it doesn't exist
+      let result;
+      try {
+        result = await client.query(
+          'SELECT id, name, email, phone, role, language_preference, location, avatar, created_at FROM users WHERE id = $1',
+          [req.user.userId]
+        );
+      } catch (columnError) {
+        // If avatar column doesn't exist, select without it
+        if (columnError.code === '42703') {
+          result = await client.query(
+            'SELECT id, name, email, phone, role, language_preference, location, created_at FROM users WHERE id = $1',
+            [req.user.userId]
+          );
+          // Add default avatar to result
+          if (result.rows.length > 0) {
+            result.rows[0].avatar = 'farmer1';
+          }
+        } else {
+          throw columnError;
+        }
+      }
 
       if (result.rows.length === 0) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
+      }
+
+      // Ensure avatar has a default value
+      if (!result.rows[0].avatar) {
+        result.rows[0].avatar = 'farmer1';
       }
 
       res.json({
@@ -257,20 +280,47 @@ class AuthController {
   async updateProfile(req, res) {
     const client = await pool.connect();
     try {
-      const { name, phone, language_preference, location } = req.body;
+      const { name, phone, language_preference, location, avatar } = req.body;
       const userId = req.user.userId;
 
-      const result = await client.query(
-        `UPDATE users 
-         SET name = COALESCE($1, name),
-             phone = COALESCE($2, phone),
-             language_preference = COALESCE($3, language_preference),
-             location = COALESCE($4, location),
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $5
-         RETURNING id, name, email, phone, role, language_preference, location`,
-        [name, phone, language_preference, location, userId]
-      );
+      // Check if avatar column exists, if not, we'll add it dynamically
+      // For now, we'll try to update it and handle gracefully if column doesn't exist
+      let result;
+      try {
+        result = await client.query(
+          `UPDATE users 
+           SET name = COALESCE($1, name),
+               phone = COALESCE($2, phone),
+               language_preference = COALESCE($3, language_preference),
+               location = COALESCE($4, location),
+               avatar = COALESCE($5, avatar),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $6
+           RETURNING id, name, email, phone, role, language_preference, location, avatar`,
+          [name, phone, language_preference, location, avatar, userId]
+        );
+      } catch (columnError) {
+        // If avatar column doesn't exist, update without it
+        if (columnError.code === '42703') {
+          // Column doesn't exist, add it first
+          await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar VARCHAR(50) DEFAULT \'farmer1\'');
+          // Retry the update
+          result = await client.query(
+            `UPDATE users 
+             SET name = COALESCE($1, name),
+                 phone = COALESCE($2, phone),
+                 language_preference = COALESCE($3, language_preference),
+                 location = COALESCE($4, location),
+                 avatar = COALESCE($5, avatar),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $6
+             RETURNING id, name, email, phone, role, language_preference, location, avatar`,
+            [name, phone, language_preference, location, avatar, userId]
+          );
+        } else {
+          throw columnError;
+        }
+      }
 
       res.json({
         success: true,

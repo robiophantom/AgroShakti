@@ -4,6 +4,7 @@ const historyController = require('../controllers/history.controller');
 const authenticate = require('../middleware/auth');
 
 router.get('/chat', authenticate, historyController.getChatHistory);
+router.delete('/chat/:session_id', authenticate, historyController.deleteChatHistory);
 router.get('/disease', authenticate, historyController.getDiseaseHistory);
 router.get('/soil', authenticate, historyController.getSoilHistory);
 router.get('/weather', authenticate, historyController.getWeatherHistory);
