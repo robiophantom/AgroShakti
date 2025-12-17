@@ -223,6 +223,49 @@ class HistoryController {
       client.release();
     }
   }
+
+  async deleteChatHistory(req, res) {
+    const client = await pool.connect();
+    try {
+      const { session_id } = req.params;
+
+      if (!session_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Session ID is required'
+        });
+      }
+
+      // Delete all chat history entries for this session and user
+      const result = await client.query(
+        'DELETE FROM chat_history WHERE user_id = $1 AND session_id = $2 RETURNING id',
+        [req.user.userId, session_id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chat history session not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Chat history deleted successfully',
+        data: {
+          deletedCount: result.rows.length
+        }
+      });
+    } catch (error) {
+      console.error('Delete Chat History Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete chat history'
+      });
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = new HistoryController();
