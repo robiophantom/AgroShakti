@@ -8,6 +8,7 @@ import MessageBubble from './Messagebubble.';
 import InputPanel from './inputpannel';
 import { Trash2, History, X, Clock, MessageSquare } from 'lucide-react';
 import api from '../../Services/Api';
+import { ttsService } from '../../Services/TTS';
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([]);
@@ -18,6 +19,9 @@ const ChatInterface = () => {
   const { currentLanguage } = useLanguage();
   const { user } = useAuth();
   const messagesEndRef = useRef(null);
+  const cancelRef = useRef(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editText, setEditText] = useState('');
   
   // Use user's language preference if available, otherwise use current language from context
   const userLanguage = user?.language_preference || currentLanguage || 'en';
@@ -25,6 +29,16 @@ const ChatInterface = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Stop any ongoing speech when leaving the chat interface
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      ttsService.stopAudio?.();
+    };
+  }, []);
 
   const loadChatHistory = async () => {
     setLoadingHistory(true);
@@ -56,6 +70,13 @@ const ChatInterface = () => {
       setLoadingHistory(false);
     }
   };
+  const getSessionTitle = (session) => {
+    const first = session.messages?.[0]?.text || 'Conversation';
+    const trimmed = first.replace(/\s+/g, ' ').trim();
+    if (!trimmed) return 'Conversation';
+    return trimmed.length > 40 ? `${trimmed.slice(0, 37)}...` : trimmed;
+  };
+
 
   const handleHistoryClick = () => {
     setShowHistory(!showHistory);
@@ -71,14 +92,16 @@ const ChatInterface = () => {
         id: `history-${session.session_id}-${idx}-user`,
         text: msg.text,
         sender: 'user',
-        timestamp: new Date(msg.timestamp)
+        timestamp: new Date(msg.timestamp),
+        autoSpeak: false
       });
       if (msg.response) {
         sessionMessages.push({
           id: `history-${session.session_id}-${idx}-bot`,
           text: msg.response,
           sender: 'bot',
-          timestamp: new Date(msg.timestamp)
+          timestamp: new Date(msg.timestamp),
+          autoSpeak: false
         });
       }
     });
@@ -123,12 +146,15 @@ const ChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = async (query) => {
+  const handleSendMessage = async (query, options = {}) => {
+    const fromVoice = options.fromVoice === true;
+    cancelRef.current = false;
     const userMessage = {
       id: Date.now(),
       text: query,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      autoSpeak: false
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -141,19 +167,76 @@ const ChatInterface = () => {
         id: Date.now() + 1,
         text: response?.response || response?.message || 'No response received',
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        // Auto-speak only when the question came from voice
+        autoSpeak: fromVoice
       };
+
+      // If user cancelled while we were waiting, ignore this response
+      if (cancelRef.current) {
+        return;
+      }
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       toast.error('Failed to get response');
       console.error('Chat error:', error);
     } finally {
-      setLoading(false);
+      if (!cancelRef.current) {
+        setLoading(false);
+      }
     }
   };
 
+  const handleStopGeneration = () => {
+    if (!loading) return;
+    cancelRef.current = true;
+    setLoading(false);
+    // Also stop any ongoing TTS audio if it was speaking the partial response
+    ttsService.stopAudio?.();
+    toast.success('Stopped generating response');
+  };
+
+  const handleEditLastUserMessage = () => {
+    if (!messages.length || loading) return;
+
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((m) => m.sender === 'user');
+    if (!lastUserMessage) return;
+
+    setEditText(lastUserMessage.text || '');
+    setEditModalOpen(true);
+  };
+
+  const handleConfirmEdit = () => {
+    const text = editText.trim();
+    if (!text) return;
+
+    // Remove last user message and everything after it
+    const newMessages = [...messages];
+    let lastUserIndex = -1;
+    for (let i = newMessages.length - 1; i >= 0; i--) {
+      if (newMessages[i].sender === 'user') {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    if (lastUserIndex !== -1) {
+      newMessages.splice(lastUserIndex);
+      setMessages(newMessages);
+    }
+
+    setEditModalOpen(false);
+    handleSendMessage(text, { fromVoice: false });
+  };
+
   const handleClearChat = () => {
+    // Stop any ongoing speech when clearing chat
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    ttsService.stopAudio?.();
     setMessages([]);
     toast.success('Chat cleared');
   };
@@ -224,7 +307,7 @@ const ChatInterface = () => {
                             </p>
                           </div>
                           <p className="text-sm text-gray-700 line-clamp-2 group-hover:text-green-700 transition-colors">
-                            {session.messages[0]?.text || 'No message'}
+                            {getSessionTitle(session)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {session.messages.length} message{session.messages.length !== 1 ? 's' : ''}
@@ -355,21 +438,33 @@ const ChatInterface = () => {
           </motion.div>
         ) : (
           <AnimatePresence>
-            {messages.map((message, index) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ 
-                  duration: 0.3, 
-                  delay: index * 0.05,
-                  ease: [0.4, 0, 0.2, 1]
-                }}
-              >
-                <MessageBubble message={message} />
-              </motion.div>
-            ))}
+            {messages.map((message, index) => {
+              const isLastUser =
+                message.sender === 'user' &&
+                messages.slice().reverse().find((m) => m.sender === 'user') ===
+                  message;
+
+              return (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{
+                    duration: 0.3,
+                    delay: index * 0.05,
+                    ease: [0.4, 0, 0.2, 1],
+                  }}
+                >
+                  <MessageBubble
+                    message={message}
+                    autoSpeak={!!message.autoSpeak}
+                    canEdit={isLastUser && !loading}
+                    onEdit={handleEditLastUserMessage}
+                  />
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         )}
         {loading && (
@@ -408,7 +503,47 @@ const ChatInterface = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      <InputPanel onSendMessage={handleSendMessage} disabled={loading} />
+      {/* Edit & resend modal */}
+      {editModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 p-5 border border-emerald-100">
+            <h3 className="text-lg font-semibold text-emerald-900 mb-2">
+              Edit your last question
+            </h3>
+            <p className="text-xs text-emerald-700 mb-3">
+              Update your question and AgroShakti will answer again with the edited version.
+            </p>
+            <textarea
+              className="w-full min-h-[100px] border border-emerald-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEdit}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                Send edited question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <InputPanel
+        onSendMessage={handleSendMessage}
+        disabled={loading}
+        isGenerating={loading}
+        onStop={handleStopGeneration}
+      />
     </div>
   );
 };

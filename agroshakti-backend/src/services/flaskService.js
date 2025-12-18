@@ -6,220 +6,8 @@ const { FLASK_ENDPOINTS } = require('../config/constants');
 const FLASK_ML_BASE = process.env.FLASK_ML_BASE_URL || 'http://localhost:8000';
 const FLASK_DISEASE_BASE = process.env.FLASK_DISEASE_DETECTION_URL || 'http://localhost:8001';
 
-// AI Fallback Configuration
-const AI_FALLBACK_PROVIDER = process.env.AI_FALLBACK_PROVIDER || 'gemini';
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 class FlaskService {
-  /* =======================
-     AI FALLBACK HANDLERS
-     ======================= */
-  
-  async callGroqFallback(message, sessionId) {
-    if (!GROQ_API_KEY || GROQ_API_KEY === 'your_groq_api_key_here') {
-      throw new Error('Groq API key not configured');
-    }
-
-    try {
-      console.log('🤖 Calling Groq API with key:', GROQ_API_KEY.substring(0, 10) + '...');
-      
-      const response = await axios.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          model: 'llama-3.1-8b-instant',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are AgroShakti AI, a helpful agricultural assistant. Provide practical farming advice, answer questions about crops, soil, weather, diseases, and agricultural practices in a friendly and informative manner.'
-            },
-            {
-              role: 'user',
-              content: message
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 800
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-      
-      console.log('✅ Groq API Success!');
-      
-      return {
-        response: response.data.choices[0].message.content,
-        session_id: sessionId,
-        fallback_used: 'groq',
-        model: 'llama-3.1-8b-instant'
-      };
-    } catch (error) {
-      console.error('❌ Groq Fallback Error Details:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers
-      });
-      throw error;
-    }
-  }
-
-  async callGeminiFallback(message, sessionId) {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
-    throw new Error('Gemini API key not configured');
-  }
-
-  try {
-    console.log('🤖 Calling Gemini API...');
-    
-    // ✅ FIXED: Changed to v1 API and correct model name
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are AgroShakti AI, a helpful agricultural assistant. Provide practical farming advice.\n\nUser question: ${message}`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 800,
-          topP: 0.8,
-          topK: 40
-        },
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          }
-        ]
-      },
-      { 
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000 
-      }
-    );
-    
-    console.log('✅ Gemini API Success!');
-    
-    return {
-      response: response.data.candidates[0].content.parts[0].text,
-      session_id: sessionId,
-      fallback_used: 'gemini',
-      model: 'gemini-2.5-flash' // ✅ Updated model name
-    };
-  } catch (error) {
-    console.error('❌ Gemini Fallback Error Details:', {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      errorType: error.response?.data?.error?.message || 'Unknown error'
-    });
-    
-    // Provide more helpful error context
-    if (error.response?.status === 404) {
-      console.error('💡 Hint: Model not found. Using gemini-2.5-flash (latest model)');
-    } else if (error.response?.status === 429) {
-      console.error('💡 Hint: Rate limit exceeded. Free tier: 15 req/min, 1500 req/day');
-    } else if (error.response?.status === 400) {
-      console.error('💡 Hint: Bad request. Check API key and request format');
-    }
-    
-    throw error;
-  }
-}
-
-
-  async callAIFallback(message, sessionId) {
-    console.log('\n🔄 Activating AI Fallback System...');
-    
-    const fallbacks = [
-      { name: 'groq', handler: this.callGroqFallback.bind(this), key: GROQ_API_KEY },
-      { name: 'gemini', handler: this.callGeminiFallback.bind(this), key: GEMINI_API_KEY }
-    ];
-
-    // Filter valid API keys
-    const availableFallbacks = fallbacks.filter(f => 
-      f.key && 
-      f.key !== '' && 
-      !f.key.includes('your_') && 
-      f.key !== 'undefined'
-    );
-
-    console.log(`📊 Available fallbacks: ${availableFallbacks.map(f => f.name).join(', ')}`);
-
-    if (availableFallbacks.length === 0) {
-      console.error('❌ No AI fallback providers configured');
-      return {
-        response: "I apologize, but the chatbot service is currently unavailable and no backup AI services are configured. Please check your API key configuration.",
-        session_id: sessionId,
-        fallback_used: 'none',
-        error: true
-      };
-    }
-
-    // Try preferred provider first
-    const preferredFallback = availableFallbacks.find(f => f.name === AI_FALLBACK_PROVIDER);
-    if (preferredFallback) {
-      try {
-        console.log(`\n🎯 Trying preferred fallback: ${preferredFallback.name}`);
-        const result = await preferredFallback.handler(message, sessionId);
-        console.log('✅ Fallback successful!\n');
-        return result;
-      } catch (error) {
-        console.log(`⚠️ Preferred fallback (${preferredFallback.name}) failed: ${error.message}`);
-      }
-    }
-
-    // Try other available fallbacks
-    for (const fallback of availableFallbacks) {
-      if (fallback.name !== AI_FALLBACK_PROVIDER) {
-        try {
-          console.log(`\n🔄 Trying fallback: ${fallback.name}`);
-          const result = await fallback.handler(message, sessionId);
-          console.log('✅ Fallback successful!\n');
-          return result;
-        } catch (error) {
-          console.log(`⚠️ Fallback ${fallback.name} failed: ${error.message}`);
-        }
-      }
-    }
-
-    // All fallbacks failed
-    console.error('❌ All AI fallbacks failed\n');
-    return {
-      response: "I apologize, but I'm currently unable to process your request. Our AI service is temporarily unavailable. Please try again in a moment.",
-      session_id: sessionId,
-      fallback_used: 'none',
-      error: true
-    };
-  }
-
   /* =======================
      PRIMARY FLASK CHATBOT
      ======================= */
@@ -228,19 +16,11 @@ class FlaskService {
       const response = await axios.post(
         `${FLASK_ML_BASE}${FLASK_ENDPOINTS.CHATBOT}`,
         { message, session_id: sessionId },
-        { timeout: 30000 }
+        { timeout: 60000 }
       );
       return response.data;
     } catch (error) {
       console.error('⚠️ Flask Chatbot Error:', error.message);
-      
-      // Use AI fallback if Flask service is unavailable
-      try {
-        return await this.callAIFallback(message, sessionId);
-      } catch (fallbackError) {
-        console.error('❌ AI Fallback also failed:', fallbackError.message);
-        throw new Error('Failed to get response from chatbot service');
-      }
     }
   }
 
@@ -322,15 +102,40 @@ class FlaskService {
   }
 
   async getDiseaseCure(diseaseInfo) {
+    /**
+     * NEW BEHAVIOUR:
+     * We no longer call a separate /disease-cure endpoint.
+     * Instead, we reuse the same LLM chatbot endpoint (/chatbot on port 8000)
+     * and send a carefully constructed question string.
+     */
+    const { disease_name, confidence, image_url } = diseaseInfo || {};
+
+    const prompt = `
+A vision model has detected the following on the farmer's crop:
+- Disease name: ${disease_name || 'Unknown'}
+- Confidence score: ${typeof confidence === 'number' ? confidence.toFixed(3) : 'N/A'}
+${image_url ? `- Image URL (for reference): ${image_url}` : ''}
+
+Based on this, provide a clear, practical cure recommendation
+1) Explain what this disease is in 2–3 lines
+2)List step-by-step treatment actions (exact sprays/chemicals or organic options, with dosage if known)
+3) Mention precautions and follow-up monitoring
+4)If the diagnosis might be wrong, mention what the farmer should double-check.
+
+give answer in less than 1000 tokens complete for this cure
+`.trim();
+
+    const sessionId = `disease_cure_${Date.now()}`;
+
     try {
-      const response = await axios.post(
-        `${FLASK_ML_BASE}${FLASK_ENDPOINTS.DISEASE_CURE}`,
-        diseaseInfo,
-        { timeout: 30000 }
-      );
-      return response.data;
+      const result = await this.callChatbot(prompt, sessionId);
+      const text = result?.response || result;
+      console.log(text)
+      return {
+        cure_recommendation: text
+      };
     } catch (error) {
-      console.error('Flask Disease Cure Error:', error.message);
+      console.error('Flask Disease Cure via Chatbot Error:', error.message);
       throw new Error('Failed to get disease cure recommendation');
     }
   }

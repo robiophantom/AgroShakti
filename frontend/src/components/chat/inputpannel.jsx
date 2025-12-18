@@ -5,7 +5,12 @@ import { useSpeechRecognition } from '../../Hooks/useSpeechrecognition';
 import { getSpeechLanguageCode } from '../../Utils/SpeechRecognition';
 import toast from 'react-hot-toast';
 
-const InputPanel = ({ onSendMessage, disabled }) => {
+const InputPanel = ({
+  onSendMessage,
+  disabled,
+  isGenerating,
+  onStop,
+}) => {
   const [input, setInput] = useState('');
   const [inputMode, setInputMode] = useState('text');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -13,7 +18,9 @@ const InputPanel = ({ onSendMessage, disabled }) => {
   const lastTranscriptRef = useRef('');
   const silenceTimeoutRef = useRef(null);
   
-  const speechLangCode = getSpeechLanguageCode(currentLanguage);
+  // Use a Hinglish-friendly speech recognition locale so users can mix Hindi + English
+  // independent of the selected UI language.
+  const speechLangCode = 'en-IN';
   const {
     transcript,
     listening,
@@ -74,7 +81,8 @@ const InputPanel = ({ onSendMessage, disabled }) => {
     if (text.trim() && !disabled) {
       stopListening();
       setIsVoiceActive(false);
-      onSendMessage(text.trim());
+      // Mark this message as coming from voice so we can auto-speak the reply
+      onSendMessage(text.trim(), { fromVoice: true });
       resetTranscript();
       setInput('');
       lastTranscriptRef.current = '';
@@ -89,8 +97,14 @@ const InputPanel = ({ onSendMessage, disabled }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isGenerating) {
+      // If a response is being generated, treat submit-click as stop for safety
+      onStop && onStop();
+      return;
+    }
     if (input.trim() && !disabled) {
-      onSendMessage(input.trim());
+      // Normal text message (no auto-speak)
+      onSendMessage(input.trim(), { fromVoice: false });
       setInput('');
       resetTranscript();
     }
@@ -191,7 +205,7 @@ const InputPanel = ({ onSendMessage, disabled }) => {
               {listening ? (
                 <span className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  Listening... (speak naturally, it will auto-complete)
+                  Listening in Hinglish (Hindi + English)... it will auto-complete
                 </span>
               ) : (
                 transcript || 'Click mic to speak'
@@ -200,13 +214,24 @@ const InputPanel = ({ onSendMessage, disabled }) => {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={disabled || (!input.trim() && !transcript)}
-          className="p-3 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-105 disabled:transform-none"
-        >
-          <Send size={20} />
-        </button>
+        <div className="flex items-center space-x-2">
+          {isGenerating && (
+            <button
+              type="button"
+              onClick={() => onStop && onStop()}
+              className="px-3 py-2 text-xs font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+            >
+              Stop
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={disabled || (!input.trim() && !transcript)}
+            className="p-3 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:shadow-md transform hover:scale-105 disabled:transform-none"
+          >
+            <Send size={20} />
+          </button>
+        </div>
       </form>
     </div>
   );

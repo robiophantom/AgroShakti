@@ -1,321 +1,124 @@
 import React, { useState, useEffect } from 'react';
-import { User, Bot } from 'lucide-react';
+import { User, Bot, Copy, ThumbsUp, ThumbsDown, Flag } from 'lucide-react';
 import { useLanguage } from '../../Context/Languagecontext';
 import { ttsService } from '../../Services/TTS';
+import { feedbackService } from '../../Services/Feedback';
+import toast from 'react-hot-toast';
 
-const MessageBubble = ({ message }) => {
+const MessageBubble = ({ message, autoSpeak = false, canEdit = false, onEdit }) => {
   const isUser = message.sender === 'user';
   const { currentLanguage } = useLanguage();
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [speechSynthesis, setSpeechSynthesis] = useState(null);
-  const [voices, setVoices] = useState([]);
+  const [hasAutoSpoken, setHasAutoSpoken] = useState(false);
+  const [reaction, setReaction] = useState(null); // 'up' | 'down' | null
 
-  // Load voices when component mounts
+  // Clean up any ongoing speech for this bubble when it unmounts
   useEffect(() => {
-    if (!('speechSynthesis' in window)) {
-      return;
-    }
-
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      if (availableVoices.length > 0) {
-        setVoices(availableVoices);
-      }
-    };
-
-    // Load voices immediately
-    loadVoices();
-    
-    // Some browsers load voices asynchronously
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    // Also try loading after a short delay (some browsers need this)
-    const timeoutId = setTimeout(loadVoices, 500);
-
     return () => {
-      clearTimeout(timeoutId);
-      // Clean up any ongoing speech when component unmounts
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      if (isSpeaking) {
+        ttsService.stopAudio?.();
       }
     };
-  }, []);
+  }, [isSpeaking]);
 
-  const handleSpeak = async () => {
-    if (isSpeaking) {
-      // Stop speaking
-      if (speechSynthesis) {
-        if (speechSynthesis.pause) {
-          speechSynthesis.pause();
-        }
-        if (speechSynthesis.stop) {
-          speechSynthesis.stop();
-        }
-      }
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      setIsSpeaking(false);
-      setSpeechSynthesis(null);
-      return;
-    }
+  // Internal helper: start backend TTS for this message
+  const startSpeak = async () => {
+    // Always stop any current audio before starting this one
+    ttsService.stopAudio?.();
 
-    // Try backend TTS first (natural human-like voice)
     try {
       const langMap = {
-        'en': 'en-US',
-        'hi': 'hi-IN',
-        'pa': 'pa-IN',
-        'bn': 'bn-IN',
-        'te': 'te-IN',
-        'mr': 'mr-IN',
-        'ta': 'ta-IN',
-        'gu': 'gu-IN'
+        en: 'en-US',
+        hi: 'hi-IN',
+        pa: 'pa-IN',
+        bn: 'bn-IN',
+        te: 'te-IN',
+        mr: 'mr-IN',
+        ta: 'ta-IN',
+        gu: 'gu-IN',
       };
       const targetLang = langMap[currentLanguage] || 'en-US';
-      
+
       setIsSpeaking(true);
-      console.log('Requesting natural TTS from backend...');
-      
-      const audioData = await ttsService.synthesizeSpeech(message.text, targetLang);
-      
+      const audioData = await ttsService.synthesizeSpeech(
+        message.text,
+        targetLang
+      );
+
       if (audioData && audioData.audioBase64) {
-        console.log('Playing natural voice audio...');
         await ttsService.playAudio(audioData.audioBase64, audioData.format);
-        setIsSpeaking(false);
-        setSpeechSynthesis(null);
-        return;
       }
     } catch (error) {
-      console.warn('Backend TTS failed, falling back to browser TTS:', error.message);
-      // Fall through to browser TTS
-    }
-
-    // Fallback to browser TTS if backend TTS fails
-    if (!('speechSynthesis' in window)) {
-      console.error('Speech synthesis is not supported in this browser');
-      alert('Text-to-speech is not supported in your browser. Please use a modern browser like Chrome, Edge, or Safari.');
+      console.error('TTS error:', error);
+    } finally {
       setIsSpeaking(false);
-      return;
     }
+  };
+
+  // Auto-play bot responses that are marked for autoSpeak (e.g. after voice input)
+  useEffect(() => {
+    if (!isUser && autoSpeak && !hasAutoSpoken && !isSpeaking) {
+      // Fire and forget; internal state will manage itself
+      startSpeak();
+      setHasAutoSpoken(true);
+    }
+  }, [autoSpeak, isUser, hasAutoSpoken, isSpeaking]);
+
+  // Speaker button: always (re)start speaking this message from the beginning
+  const handleSpeak = async () => {
+    await startSpeak();
+  };
+
+  // Stop button: interrupt/stop current audio
+  const handleStop = () => {
+    ttsService.stopAudio?.();
+    setIsSpeaking(false);
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.text || '');
+      toast.success('Copied answer');
+    } catch {
+      toast.error('Could not copy');
+    }
+  };
+
+  const handleReaction = async (type) => {
+    const next = reaction === type ? null : type;
+    setReaction(next);
+
+    // Fire-and-forget feedback (rating 5 for like, 1 for dislike)
+    if (next) {
+      try {
+        await feedbackService.submitFeedback({
+          feature_type: 'chatbot',
+          rating: next === 'up' ? 5 : 1,
+          comment: message.text?.slice(0, 500) || '',
+        });
+      } catch (e) {
+        console.error('Feedback failed', e);
+      }
+    }
+  };
+
+  const handleReport = async () => {
+    const description = window.prompt(
+      'Describe what is wrong with this answer (optional):',
+      message.text?.slice(0, 200) || ''
+    );
+    if (description === null) return;
 
     try {
-      // Get available voices (reload if needed)
-      let availableVoices = window.speechSynthesis.getVoices();
-      if (availableVoices.length === 0) {
-        // Wait for voices to load
-        availableVoices = voices.length > 0 ? voices : [];
-        if (availableVoices.length === 0) {
-          // Force reload voices
-          window.speechSynthesis.getVoices();
-          setTimeout(() => {
-            availableVoices = window.speechSynthesis.getVoices();
-            speakWithVoices(availableVoices);
-          }, 100);
-          return;
-        }
-      }
-      
-      speakWithVoices(availableVoices);
-    } catch (error) {
-      console.error('Error starting speech:', error);
-      setIsSpeaking(false);
-      alert('Failed to start speech. Please try again.');
-    }
-  };
-
-  const speakWithVoices = (availableVoices) => {
-    // Set language based on current language context
-    const langMap = {
-      'en': 'en-US',
-      'hi': 'hi-IN',
-      'pa': 'pa-IN',
-      'bn': 'bn-IN',
-      'te': 'te-IN',
-      'mr': 'mr-IN',
-      'ta': 'ta-IN',
-      'gu': 'gu-IN'
-    };
-    const targetLang = langMap[currentLanguage] || 'en-US';
-    const langCode = targetLang.split('-')[0];
-    
-    // Find the best voice for the target language
-    let selectedVoice = null;
-    if (availableVoices.length > 0) {
-      // Try to find a voice that matches the language
-      selectedVoice = availableVoices.find(v => 
-        v.lang === targetLang
-      ) || availableVoices.find(v => 
-        v.lang.startsWith(langCode)
-      ) || availableVoices.find(v => 
-        v.lang.includes('en')
-      ) || availableVoices[0];
-      
-      console.log('Selected voice:', selectedVoice?.name || 'Default', 'Language:', selectedVoice?.lang || targetLang);
-      console.log('Available voices:', availableVoices.length);
-    }
-
-    // Process text to add natural pauses
-    const processedText = message.text
-      .replace(/([.!?])\s+/g, '$1 ') // Ensure space after punctuation
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim();
-
-    if (!processedText) {
-      console.error('No text to speak');
-      return;
-    }
-
-    console.log('Text to speak:', processedText.substring(0, 100) + (processedText.length > 100 ? '...' : ''));
-    console.log('Text length:', processedText.length);
-
-    const utterance = new SpeechSynthesisUtterance(processedText);
-    
-    // Use selected voice
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-      console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
-    } else {
-      console.warn('No voice selected, using default');
-    }
-    
-    utterance.lang = targetLang;
-    
-    // Better voice settings for natural flow
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1.0; // Normal pitch
-    utterance.volume = 1.0; // Full volume
-
-    // Event handlers
-    utterance.onstart = (event) => {
-      setIsSpeaking(true);
-      console.log('Speech started - Event:', event);
-      console.log('Speech synthesis speaking:', window.speechSynthesis.speaking);
-      console.log('Speech synthesis pending:', window.speechSynthesis.pending);
-    };
-
-    utterance.onend = (event) => {
-      setIsSpeaking(false);
-      setSpeechSynthesis(null);
-      console.log('Speech ended - Event:', event);
-    };
-
-    utterance.onerror = (error) => {
-      console.error('Speech synthesis error:', error);
-      console.error('Error details:', {
-        error: error.error,
-        type: error.type,
-        charIndex: error.charIndex,
-        char: error.char,
-        elapsedTime: error.elapsedTime,
-        name: error.name
+      await feedbackService.submitReport({
+        report_type: 'inappropriate_content',
+        description: description || message.text || 'Issue with chatbot answer',
       });
-      setIsSpeaking(false);
-      setSpeechSynthesis(null);
-      
-      // Provide user feedback
-      if (error.error === 'not-allowed') {
-        alert('Speech is blocked. Please allow audio in your browser settings.');
-      } else if (error.error === 'network') {
-        alert('Network error. Please check your connection.');
-      } else if (error.error === 'synthesis-failed') {
-        alert('Speech synthesis failed. The text might not be supported in this language. Trying with English voice...');
-        // Fallback to English
-        tryFallbackEnglish(processedText, availableVoices);
-      } else {
-        console.error('Unknown error:', error);
-        alert(`Speech error: ${error.error || 'Unknown error'}. Please check console for details.`);
-      }
-    };
-
-    // Cancel any ongoing speech before starting new one
-    window.speechSynthesis.cancel();
-    
-    // Wait a bit longer to ensure cancellation is processed
-    setTimeout(() => {
-      try {
-        // Check if speech synthesis is available
-        if (!window.speechSynthesis) {
-          throw new Error('Speech synthesis not available');
-        }
-        
-        // Check browser state
-        console.log('Speech synthesis state:', {
-          speaking: window.speechSynthesis.speaking,
-          pending: window.speechSynthesis.pending,
-          paused: window.speechSynthesis.paused
-        });
-        
-        window.speechSynthesis.speak(utterance);
-        setSpeechSynthesis(utterance);
-        
-        // Verify it started after a short delay
-        setTimeout(() => {
-          const isSpeaking = window.speechSynthesis.speaking;
-          const isPending = window.speechSynthesis.pending;
-          
-          if (!isSpeaking && !isPending) {
-            console.warn('Speech did not start. Possible issues:');
-            console.warn('1. Browser autoplay policy blocking audio');
-            console.warn('2. Tab is muted (check browser tab icon)');
-            console.warn('3. System volume is muted');
-            console.warn('4. Voice not available for this language');
-            console.warn('5. Browser does not support this language');
-            
-            // Try with English as fallback
-            console.log('Attempting fallback to English...');
-            tryFallbackEnglish(processedText, availableVoices);
-          } else {
-            console.log('Speech is active:', { speaking: isSpeaking, pending: isPending });
-          }
-        }, 300);
-        
-        console.log('Speaking:', processedText.substring(0, 50) + '...');
-      } catch (error) {
-        console.error('Error speaking:', error);
-        setIsSpeaking(false);
-        alert('Failed to speak. Please try again.');
-      }
-    }, 200);
-  };
-
-  const tryFallbackEnglish = (text, availableVoices) => {
-    const englishVoice = availableVoices.find(v => 
-      v.lang.includes('en') && v.localService !== false
-    ) || availableVoices.find(v => v.lang.includes('en')) || availableVoices[0];
-
-    if (!englishVoice) {
-      alert('No English voice available for fallback.');
-      return;
+      toast.success('Reported to admin');
+    } catch (e) {
+      console.error('Report failed', e);
+      toast.error('Could not send report');
     }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = englishVoice;
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      console.log('Fallback English speech started');
-    };
-
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setSpeechSynthesis(null);
-    };
-
-    utterance.onerror = (error) => {
-      console.error('Fallback speech error:', error);
-      setIsSpeaking(false);
-      setSpeechSynthesis(null);
-    };
-
-    window.speechSynthesis.speak(utterance);
-    setSpeechSynthesis(utterance);
   };
 
   return (
@@ -351,39 +154,125 @@ const MessageBubble = ({ message }) => {
             : 'bg-white border border-gray-200 text-gray-800'
         }`}>
           <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.text}</p>
-          <div className={`flex items-center justify-between mt-2 ${
-            isUser ? 'text-primary-100' : 'text-gray-500'
-          }`}>
-            <p className="text-xs">
-              {new Date(message.timestamp).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </p>
+          <div
+            className={`flex items-center justify-between mt-2 ${
+              isUser ? 'text-primary-100' : 'text-gray-500'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <p className="text-xs">
+                {new Date(message.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+              {isUser && canEdit && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit && onEdit();
+                  }}
+                  className="text-[11px] underline underline-offset-2 hover:text-emerald-100"
+                >
+                  Edit & resend
+                </button>
+              )}
+            </div>
             {!isUser && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSpeak();
-                }}
-                className={`ml-3 p-1.5 rounded-full transition-all duration-300 cursor-pointer z-10 ${
-                  isSpeaking 
-                    ? 'bg-green-100 text-green-700 scale-110 animate-pulse' 
-                    : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
-                }`}
-                title={isSpeaking ? 'Stop speaking' : 'Listen to response'}
-                aria-label={isSpeaking ? 'Stop speaking' : 'Listen to response'}
-              >
-                <div className="relative pointer-events-none">
-                  <Bot size={16} className={isSpeaking ? 'animate-bounce' : ''} />
-                  {isSpeaking && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-4 h-4 border-2 border-green-600 rounded-full animate-ping"></div>
-                    </div>
-                  )}
+              <div className="flex items-center gap-2">
+                {/* Message actions: copy / like / dislike / report */}
+                <div className="hidden sm:flex items-center gap-1 mr-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy();
+                    }}
+                    className="p-1 rounded-full text-gray-400 hover:text-emerald-700 hover:bg-emerald-50"
+                    title="Copy answer"
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReaction('up');
+                    }}
+                    className={`p-1 rounded-full hover:bg-emerald-50 ${
+                      reaction === 'up'
+                        ? 'text-emerald-700 bg-emerald-50'
+                        : 'text-gray-400 hover:text-emerald-700'
+                    }`}
+                    title="Helpful"
+                  >
+                    <ThumbsUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReaction('down');
+                    }}
+                    className={`p-1 rounded-full hover:bg-rose-50 ${
+                      reaction === 'down'
+                        ? 'text-rose-700 bg-rose-50'
+                        : 'text-gray-400 hover:text-rose-700'
+                    }`}
+                    title="Not helpful"
+                  >
+                    <ThumbsDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReport();
+                    }}
+                    className="p-1 rounded-full text-gray-400 hover:text-amber-700 hover:bg-amber-50"
+                    title="Report this answer"
+                  >
+                    <Flag size={14} />
+                  </button>
                 </div>
-              </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSpeak();
+                  }}
+                  className={`p-1.5 rounded-full transition-all duration-300 cursor-pointer z-10 ${
+                    isSpeaking
+                      ? 'bg-green-100 text-green-700 scale-110 animate-pulse'
+                      : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                  }`}
+                  title="Listen to response"
+                  aria-label="Listen to response"
+                >
+                  <div className="relative pointer-events-none">
+                    <Bot size={16} className={isSpeaking ? 'animate-bounce' : ''} />
+                    {isSpeaking && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-green-600 rounded-full animate-ping"></div>
+                      </div>
+                    )}
+                  </div>
+                </button>
+                {isSpeaking && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStop();
+                    }}
+                    className="px-2 py-1 text-[11px] rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                  >
+                    Stop
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

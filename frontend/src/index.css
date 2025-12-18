@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-emerald-50 text-gray-900;
   }
 }
 
@@ -557,4 +557,25 @@
   );
   background-size: 1000px 100%;
   animation: shimmer 2s infinite linear;
+}
+
+@layer utilities {
+  .home-bg,
+  .page-bg {
+    background-image: url('/images/home-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .home-overlay,
+  .page-overlay {
+    /* Soft farm-inspired gradient overlay (green fields + fertile soil) */
+    background-image: linear-gradient(
+      to bottom right,
+      rgba(240, 253, 244, 0.9),
+      rgba(220, 252, 231, 0.9),
+      rgba(254, 243, 199, 0.9)
+    );
+  }
 }
