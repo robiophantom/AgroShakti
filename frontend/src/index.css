@@ -1,0 +1,581 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-emerald-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-lg p-6;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Simple fade-in animation for chat messages and hero content */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.25s ease-out;
+}
+
+/* Robot Greeting Animation - Hi Gesture */
+.robot-greeting-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  min-height: 200px;
+  position: relative;
+  overflow: visible;
+  animation: robotSlideUp 0.8s ease-out;
+}
+
+@keyframes robotSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.robot-avatar {
+  position: relative;
+  width: 140px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.robot-head {
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #0e7490 100%);
+  border-radius: 50%;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 6px 12px rgba(6, 182, 212, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+  animation: robotHeadBounce 2.5s ease-in-out infinite;
+  z-index: 3;
+}
+
+.robot-antenna {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 12px;
+  background: linear-gradient(180deg, #06b6d4 0%, #0891b2 100%);
+  border-radius: 2px;
+}
+
+.robot-antenna-tip {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: #06b6d4;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(6, 182, 212, 0.5);
+}
+
+.robot-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 50px;
+  background: #1e293b;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.robot-eye {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  margin: 0 4px;
+  animation: robotBlink 3.5s ease-in-out infinite;
+}
+
+.robot-eye::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 6px;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 50%;
+}
+
+.robot-eyes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.robot-mouth {
+  width: 24px;
+  height: 12px;
+  border: 2px solid white;
+  border-top: none;
+  border-radius: 0 0 24px 24px;
+  margin-top: 2px;
+  animation: robotSmile 2.5s ease-in-out infinite;
+}
+
+.robot-body {
+  width: 80px;
+  height: 70px;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 40%, #0e7490 100%);
+  border-radius: 20px 20px 15px 15px;
+  margin-top: -8px;
+  position: relative;
+  box-shadow: 0 6px 12px rgba(6, 182, 212, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+.robot-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 4px;
+  opacity: 0.9;
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+.robot-arms-container {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Simple Hi wave gesture - right hand waves */
+
+.robot-arm {
+  position: absolute;
+  width: 14px;
+  height: 55px;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #0e7490 100%);
+  border-radius: 7px;
+  top: 0;
+  transform-origin: top center;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.robot-arm.left-arm {
+  left: -18px;
+  animation: waveLeftArm 2s ease-in-out infinite;
+  animation-delay: 0.8s; /* Start after slide up */
+}
+
+.robot-arm.right-arm {
+  right: -18px;
+  animation: waveRightArm 2s ease-in-out infinite;
+  animation-delay: 0.8s; /* Start after slide up */
+}
+
+.robot-hand {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  border-radius: 50%;
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fingers pointing up for Namaste (like in the image) */
+.robot-hand::before {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 10px;
+  background: linear-gradient(180deg, #0891b2 0%, #0e7490 100%);
+  border-radius: 2px;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.robot-hand.left-hand {
+  animation: waveLeftHand 2s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.robot-hand.right-hand {
+  animation: waveRightHand 2s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.robot-shadow {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  filter: blur(4px);
+  z-index: 0;
+}
+
+/* Animations */
+@keyframes robotHeadBounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+@keyframes robotBlink {
+  0%, 90%, 100% {
+    height: 14px;
+    opacity: 1;
+  }
+  92%, 98% {
+    height: 2px;
+    opacity: 0.8;
+  }
+}
+
+@keyframes robotSmile {
+  0%, 100% {
+    width: 24px;
+    border-radius: 0 0 24px 24px;
+  }
+  50% {
+    width: 28px;
+    border-radius: 0 0 28px 28px;
+  }
+}
+
+/* Simple Hi Wave Gesture - Right hand waves up and down */
+@keyframes waveRightArm {
+  0%, 100% {
+    transform: rotate(30deg) translateX(0) translateY(0);
+  }
+  25% {
+    transform: rotate(15deg) translateX(-5px) translateY(-15px);
+  }
+  50% {
+    transform: rotate(5deg) translateX(-8px) translateY(-20px);
+  }
+  75% {
+    transform: rotate(15deg) translateX(-5px) translateY(-15px);
+  }
+}
+
+@keyframes waveLeftArm {
+  0%, 100% {
+    transform: rotate(-30deg) translateX(0) translateY(0);
+  }
+  /* Left arm stays still, only right arm waves */
+}
+
+@keyframes waveRightHand {
+  0%, 100% {
+    transform: translateX(-50%) rotate(20deg);
+  }
+  25% {
+    transform: translateX(-50%) rotate(10deg) translateX(-5px) translateY(-2px);
+  }
+  50% {
+    transform: translateX(-50%) rotate(0deg) translateX(-8px) translateY(-3px);
+  }
+  75% {
+    transform: translateX(-50%) rotate(10deg) translateX(-5px) translateY(-2px);
+  }
+}
+
+@keyframes waveLeftHand {
+  0%, 100% {
+    transform: translateX(-50%) rotate(-20deg);
+  }
+  /* Left hand stays still */
+}
+
+/* Modern page transitions */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Robot Speaking Animation */
+@keyframes robotSpeaking {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    box-shadow: 0 6px 12px rgba(6, 182, 212, 0.3);
+  }
+  25% {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 8px 16px rgba(6, 182, 212, 0.4);
+  }
+  50% {
+    transform: scale(1.08) translateY(-4px);
+    box-shadow: 0 10px 20px rgba(6, 182, 212, 0.5);
+  }
+  75% {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 8px 16px rgba(6, 182, 212, 0.4);
+  }
+}
+
+@keyframes robotMouthSpeaking {
+  0%, 100% {
+    width: 24px;
+    height: 12px;
+    border-radius: 0 0 24px 24px;
+  }
+  25% {
+    width: 28px;
+    height: 14px;
+    border-radius: 0 0 28px 28px;
+  }
+  50% {
+    width: 32px;
+    height: 16px;
+    border-radius: 0 0 32px 32px;
+  }
+  75% {
+    width: 28px;
+    height: 14px;
+    border-radius: 0 0 28px 28px;
+  }
+}
+
+@keyframes robotEyesSpeaking {
+  0%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.3);
+  }
+}
+
+.robot-speaking .robot-head {
+  animation: robotSpeaking 1s ease-in-out infinite;
+}
+
+.robot-speaking .robot-mouth {
+  animation: robotMouthSpeaking 0.8s ease-in-out infinite;
+}
+
+.robot-speaking .robot-eye {
+  animation: robotEyesSpeaking 0.6s ease-in-out infinite;
+}
+
+/* Enhanced message animations */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.message-enter {
+  animation: messageSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth gradient animations */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    to right,
+    #f6f7f8 0%,
+    #edeef1 20%,
+    #f6f7f8 40%,
+    #f6f7f8 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+@layer utilities {
+  .home-bg,
+  .page-bg {
+    background-image: url('/images/home-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .home-overlay,
+  .page-overlay {
+    /* Soft farm-inspired gradient overlay (green fields + fertile soil) */
+    background-image: linear-gradient(
+      to bottom right,
+      rgba(240, 253, 244, 0.9),
+      rgba(220, 252, 231, 0.9),
+      rgba(254, 243, 199, 0.9)
+    );
+  }
+}
