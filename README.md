@@ -1,69 +1,129 @@
-## AgroShakti – Full Stack Features Overview
+# 🌱 AgroShakti
 
-Here’s a concise list of what the **AgroShakti** system currently does end‑to‑end.
+**Web interface powered by LLM to help farmers.**
 
-### Backend features (Node + Postgres + Flask)
-
-- **Authentication & users**
-  - Register, login, logout, refresh tokens (`/api/auth/*`) using JWT (access + refresh).
-  - Roles: **farmer** and **admin**.
-  - Profile management (`/api/auth/me`, `/api/auth/profile`, `/api/auth/delete-account`).
-
-- **Core AI hooks (all require auth)**
-  - **Chatbot**: `POST /api/hooks/chatbot` – general agri Q&A (LLM via Flask `:8000`).
-  - **Soil analysis**: `POST /api/hooks/soil-analysis` – takes soil params and returns recommendations.
-  - **Resource estimation**: `POST /api/hooks/resource-estimation` – fertilizer/water/resources for a crop and land size.
-  - **Weather advisory**: `POST /api/hooks/weather-advisory` – weather + market info by location/crop.
-  - **Scheme search**: `POST /api/hooks/scheme-search` – ML-based search on government schemes.
-  - **Disease detection**: `POST /api/hooks/disease-detection` – image upload → detect disease (Flask `:8001`) → get cure (Flask `:8000`), store image in Cloudinary.
-
-- **History & analytics**
-  - Chat history: `GET /api/history/chat` (paginated, by user & optional session).
-  - Disease, soil, weather, resource histories: `GET /api/history/*`.
-  - All interactions recorded in Postgres (12 tables: users, chat_history, soil_data, etc.).
-
-- **Schemes & surveys**
-  - Schemes CRUD with search (`/api/schemes/*`) – admin manages, farmers read.
-  - Surveys system: active survey, responses, admin analytics (`/api/surveys/*`).
-
-- **Feedback & admin**
-  - Feedback & reports: create and resolve issues (`/api/feedback/*`).
-  - Admin stats & user management (`/api/admin/*`).
-
-- **Infra**
-  - CORS configured for dev (any origin in your environment).
-  - Integrates two Flask ML services (`:8000`, `:8001`) and Cloudinary.
+AgroShakti is an AI-powered platform designed to empower farmers with real-time advice, disease detection, resource planning, weather forecasts, government schemes, and soil analysis, all via an easy-to-use web interface. It combines large language models, modern web technologies, and deep learning for a true farmer-centric experience.
 
 ---
 
-### Frontend features (Vite + React, no mock data)
+## 🚀 Key Features
 
-- **Landing page**
-  - Modern hero section describing AgroShakti, feature cards (Chatbot, Disease Detection, Multi-language), “Get Started” button.
-  - Built to visually match your old `frontend` app style.
-
-- **Auth & session handling**
-  - Login & registration UI (name, email, phone, password, location).
-  - Real calls to backend `/api/auth/register`, `/api/auth/login`.
-  - Stores access + refresh tokens, automatic **access-token refresh** via `/api/auth/refresh-token`.
-  - User info loaded from `/api/auth/me`; logout calls `/api/auth/logout` and clears tokens.
-
-- **Chat interface**
-  - Fully wired to `POST /api/hooks/chatbot` (real LLM reply, no mocks).
-  - Uses **session_id** so multiple messages stay in the same session.
-  - Shows past messages by pulling `GET /api/history/chat` on login.
-  - Displays chat bubbles with timestamps and session badge, and lets you “Start fresh” for a new session.
-
-- **Voice & text interaction**
-  - **Text input**: standard chat box.
-  - **Speech input**: mic button uses browser **SpeechRecognition** to convert speech → text, fills the input, then you send to backend.
-  - **Speech output**: speaker button + auto-read latest assistant message via **speechSynthesis**.
-  - Graceful fallback: if the browser doesn’t support these APIs, the mic/speaker controls are hidden.
+- **Conversational Chatbot** — Ask agriculture-related questions in simple language, get lengthy, practical, and step-by-step answers tailored for farmers.
+- **AI Disease Detection** — Upload plant images to detect diseases using computer vision and deep learning.
+- **Resource Planning &amp; Recommendations** — Get advice on crop management, soil health, irrigation, pest &amp; disease control, and government programs.
+- **Weather Forecasts** — Integrated weather data via streamlined APIs.
+- **Database &amp; History** — Secure user data, feedback, and interaction history using robust backend and PostgreSQL.
+- **Modular Design** — Separate backend API, ML services, and frontend for extensibility.
 
 ---
 
-### Repository structure
+## 🗂️ Repository Structure
 
-- `agroshakti-backend/` – Express + Postgres API, integrates with Flask ML services and Cloudinary.
-- `agroshakti-frontend/` – Vite + React SPA using real backend APIs (no mock data).
-- `frontend/` – Original prototype frontend (used as design reference).
+```
+.
+├── agroshakti-backend/          # Node + Express backend API (DB, Auth, API endpoints, business logic)
+├── flask-llm/                   # Python Flask microservice for LLM-based chatbot (Llama 3)
+├── flask_disease_detection/     # Python Flask microservice for crop disease image detection (PyTorch/CV)
+├── frontend/                    # React web frontend (UI, user interaction)
+├── source_code_for_reference/   # Reference/legacy code (for migration or learning)
+├── LICENSE
+├── README.md
+├── .gitignore
+├── .gitattributes
+```
+
+---
+
+## 🏗️ Component Overview
+
+### 1. Backend API (`agroshakti-backend/`)
+- **Node.js**, **Express**, **PostgreSQL via Supabase**, **Cloudinary**, **JWT Auth**
+- Modular REST API: `auth`, `scheme`, `survey`, `hooks` (AI calls), `history`, `feedback`, and `admin`.
+- **Files**: `server.js` (entry), `migrate.js` (DB migration), `.env.example`, `package.json`
+- Integrates with Flask ML microservices for AI features.
+- <a>View folder README &amp; docs</a>
+
+### 2. LLM Chatbot Microservice (`flask-llm/`)
+- **Python Flask** app wrapping a local Llama 3.1 model (`llama-cpp-python`)
+- Custom prompt template to ensure friendly, detailed, farmer-focused responses
+- `/chatbot` API endpoint: Input a query, get back detailed answer.
+- **Requirements**: `flask`, `flask-cors`, `llama-cpp-python`
+- <a>app.py</a>
+
+### 3. Disease Detection Microservice (`flask_disease_detection/`)
+- **Python Flask** + **PyTorch** for CV-based multi-crop disease detection (94 classes supported!)
+- `/detect` API endpoint for uploading plant images and receiving a diagnosis
+- **Requirements**: `Flask`, `torch`, `torchvision`, `Pillow`, `Werkzeug`
+- Model weights: Download from <a>Google Drive link provided inside</a>
+- <a>app.py</a>
+
+### 4. Frontend (`frontend/`)
+- **React**, **Vite**, **TailwindCSS**
+- Modern, farmer-friendly UI for all features (chat, upload, history, etc.)
+- See <a>frontend/README.md</a> for setup &amp; details.
+
+### 5. Reference Code (`source_code_for_reference/`)
+- Contains samples and legacy scripts used during prototyping/development (not production).
+
+---
+
+## 🛠️ Setup &amp; Installation
+
+### Prerequisites
+- Node.js, Python 3.9+, pip, PostgreSQL
+- For local LLM: Download Llama 3.1 model weights (.gguf) as referenced in `flask-llm/app.py`
+
+### 1. Backend API
+```sh
+cd agroshakti-backend
+cp .env.example .env         # Add your actual credentials
+npm install
+npm run migrate              # Creates DB tables
+npm run dev                  # Starts the backend server (port 5000)
+```
+
+### 2. LLM Chatbot Microservice
+```sh
+cd flask-llm
+pip install -r requirement.txt
+python app.py                # Runs on port 8000
+```
+
+### 3. Disease Detection Microservice
+```sh
+cd flask_disease_detection
+pip install -r requirements.txt
+# Download the trained model as explained in app.py
+python app.py                # Runs on port 8001
+```
+
+### 4. Frontend
+```sh
+cd frontend
+npm install
+npm run dev                  # Starts React app (port 5173)
+```
+
+---
+
+## 👥 Contributing
+
+Contributions, issues, and feature requests are welcome! Please check existing issues/PRs before opening new ones.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License; see <a>LICENSE</a> for details.
+
+---
+
+## 🔗 Useful Links
+
+- Explore code: <a href="https://github.com/robiophantom/AgroShakti">GitHub Repository</a>
+- Backend Docs: <a>agroshakti-backend/README.md</a>
+- Demo/model weights: See in-code comments
+
+---
+
+&gt; **Note:** This README is a high-level summary. For full docs and implementation guides, always check individual folders.
