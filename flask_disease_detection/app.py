@@ -15,7 +15,7 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_PATH = "trained_model/best_resnet50_3.pth"
+MODEL_PATH = "trained_model/best_resnet50_3.pth"   # to use this model first download it from this drive link  --- "https://drive.google.com/file/d/1IL-BGWYyYWqAFMKVrsYTwW8kTRmHq0cb/view?usp=sharing"
 UPLOAD_FOLDER = "temp_uploads"
 IMG_SIZE = 224
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
