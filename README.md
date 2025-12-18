@@ -10,9 +10,9 @@ AgroShakti is an AI-powered platform designed to empower farmers with real-time 
 
 - **Conversational Chatbot** — Ask agriculture-related questions in simple language, get lengthy, practical, and step-by-step answers tailored for farmers.
 - **AI Disease Detection** — Upload plant images to detect diseases using computer vision and deep learning.
-- **Resource Planning &amp; Recommendations** — Get advice on crop management, soil health, irrigation, pest &amp; disease control, and government programs.
+- **Resource Planning & Recommendations** — Get advice on crop management, soil health, irrigation, pest & disease control, and government programs.
 - **Weather Forecasts** — Integrated weather data via streamlined APIs.
-- **Database &amp; History** — Secure user data, feedback, and interaction history using robust backend and PostgreSQL.
+- **Database & History** — Secure user data, feedback, and interaction history using robust backend and PostgreSQL.
 - **Modular Design** — Separate backend API, ML services, and frontend for extensibility.
 
 ---
@@ -41,33 +41,33 @@ AgroShakti is an AI-powered platform designed to empower farmers with real-time 
 - Modular REST API: `auth`, `scheme`, `survey`, `hooks` (AI calls), `history`, `feedback`, and `admin`.
 - **Files**: `server.js` (entry), `migrate.js` (DB migration), `.env.example`, `package.json`
 - Integrates with Flask ML microservices for AI features.
-- <a>View folder README &amp; docs</a>
+- [View folder README & docs](agroshakti-backend/README.md)
 
 ### 2. LLM Chatbot Microservice (`flask-llm/`)
 - **Python Flask** app wrapping a local Llama 3.1 model (`llama-cpp-python`)
 - Custom prompt template to ensure friendly, detailed, farmer-focused responses
 - `/chatbot` API endpoint: Input a query, get back detailed answer.
 - **Requirements**: `flask`, `flask-cors`, `llama-cpp-python`
-- <a>app.py</a>
+- [app.py](flask-llm/app.py)
 
 ### 3. Disease Detection Microservice (`flask_disease_detection/`)
 - **Python Flask** + **PyTorch** for CV-based multi-crop disease detection (94 classes supported!)
 - `/detect` API endpoint for uploading plant images and receiving a diagnosis
 - **Requirements**: `Flask`, `torch`, `torchvision`, `Pillow`, `Werkzeug`
-- Model weights: Download from <a>Google Drive link provided inside</a>
-- <a>app.py</a>
+- Model weights: Download from Google Drive link provided inside
+- [app.py](flask_disease_detection/app.py)
 
 ### 4. Frontend (`frontend/`)
 - **React**, **Vite**, **TailwindCSS**
 - Modern, farmer-friendly UI for all features (chat, upload, history, etc.)
-- See <a>frontend/README.md</a> for setup &amp; details.
+- See [frontend/README.md](frontend/README.md) for setup & details.
 
 ### 5. Reference Code (`source_code_for_reference/`)
 - Contains samples and legacy scripts used during prototyping/development (not production).
 
 ---
 
-## 🛠️ Setup &amp; Installation
+## 🛠️ Setup & Installation
 
 ### Prerequisites
 - Node.js, Python 3.9+, pip, PostgreSQL
@@ -85,7 +85,7 @@ npm run dev                  # Starts the backend server (port 5000)
 ### 2. LLM Chatbot Microservice
 ```sh
 cd flask-llm
-pip install -r requirement.txt
+pip install -r requirements.txt
 python app.py                # Runs on port 8000
 ```
 
@@ -114,16 +114,16 @@ Contributions, issues, and feature requests are welcome! Please check existing i
 
 ## 📜 License
 
-This project is licensed under the MIT License; see <a>LICENSE</a> for details.
+This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.
 
 ---
 
 ## 🔗 Useful Links
 
-- Explore code: <a href="https://github.com/robiophantom/AgroShakti">GitHub Repository</a>
-- Backend Docs: <a>agroshakti-backend/README.md</a>
+- Explore code: [GitHub Repository](https://github.com/robiophantom/AgroShakti)
+- Backend Docs: [agroshakti-backend/README.md](agroshakti-backend/README.md)
 - Demo/model weights: See in-code comments
 
 ---
 
-&gt; **Note:** This README is a high-level summary. For full docs and implementation guides, always check individual folders.
+> **Note:** This README is a high-level summary. For full docs and implementation guides, always check individual folders.
