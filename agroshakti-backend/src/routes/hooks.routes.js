@@ -10,5 +10,7 @@ router.post('/resource-estimation', authenticate, hooksController.resourceEstima
 router.post('/weather-advisory', authenticate, hooksController.weatherAdvisory);
 router.post('/scheme-search', authenticate, hooksController.schemeSearch);
 router.post('/disease-detection', authenticate, upload.single('image'), hooksController.diseaseDetection);
+router.post('/translate', authenticate, hooksController.translate);
+router.post('/text-to-speech', authenticate, hooksController.textToSpeech);
 
 module.exports = router;

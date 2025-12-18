@@ -14,9 +14,11 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 
 // Middleware
+// Development-friendly CORS: reflect any origin that calls the API.
+// This avoids "Not allowed by CORS" errors while you build the frontend.
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true
+  origin: true,        // reflect request origin
+  credentials: true    // allow Authorization header / cookies
 }));
 
 app.use(express.json());

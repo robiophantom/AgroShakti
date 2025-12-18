@@ -9,11 +9,10 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ssl: {
-    require: true,
-    rejectUnauthorized: false, // allow self-signed
-  }
+  connectionTimeoutMillis: 8000,
+  ssl: process.env.DB_SSL === 'true'
+    ? { rejectUnauthorized: false }
+    : false
 });
 
 pool.on('connect', () => {
