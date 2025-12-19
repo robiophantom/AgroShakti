@@ -65,5 +65,4 @@ Here’s a concise list of what the **AgroShakti** system currently does end‑t
 ### Repository structure
 
 - `agroshakti-backend/` – Express + Postgres API, integrates with Flask ML services and Cloudinary.
-- `agroshakti-frontend/` – Vite + React SPA using real backend APIs (no mock data).
 - `frontend/` – Original prototype frontend (used as design reference).
